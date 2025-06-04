@@ -1,36 +1,43 @@
-from homework.src._internals.calculate_metrics import calculate_metrics
-from homework.src._internals.parse_argument import parse_argument
-from homework.src._internals.prepare_data import prepare_data
-from homework.src._internals.print_metrics import print_metrics
-from homework.src._internals.save_model_if_better import save_model_if_better
-from homework.src._internals.select_model import select_model
+import argparse
+import mlflow
+import mlflow.sklearn
+from sklearn.linear_model import ElasticNet
+from sklearn.neighbors import KNeighborsRegressor
+from sklearn.datasets import load_diabetes
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_squared_error
 
-FILE_PATH = "data/winequality-red.csv"
-TEST_SIZE = 0.25
-RANDOM_STATE = 123456
+def train_model(model_name):
+    # Load dataset
+    X, y = load_diabetes(return_X_y=True)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
+    if model_name == "elasticnet":
+        model = ElasticNet(alpha=0.5, l1_ratio=0.5)
+    elif model_name == "knn":
+        model = KNeighborsRegressor(n_neighbors=5)
+    else:
+        raise ValueError(f"Unknown model: {model_name}")
+
+    # Train model
+    model.fit(X_train, y_train)
+
+    # Predict and evaluate
+    predictions = model.predict(X_test)
+    mse = mean_squared_error(y_test, predictions)
+
+    # Log experiment
+    mlflow.set_experiment("Model Evaluation")
+    with mlflow.start_run():
+        mlflow.log_param("model", model_name)
+        mlflow.log_metric("mse", mse)
+        mlflow.sklearn.log_model(model, "model")
 
 def main():
-
-    args = parse_argument()
-    model = select_model(args)
-
-    x_train, x_test, y_train, y_test = prepare_data(
-        file_path=FILE_PATH,
-        test_size=TEST_SIZE,
-        random_state=RANDOM_STATE,
-    )
-
-    model.fit(x_train, y_train)
-
-    mse, mae, r2 = calculate_metrics(model, x_train, y_train)
-    print_metrics("Training metrics", mse, mae, r2)
-
-    mse, mae, r2 = calculate_metrics(model, x_test, y_test)
-    print_metrics("Testing metrics", mse, mae, r2)
-
-    save_model_if_better(model, x_test, y_test)
-
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--model", type=str, required=True, help="Model to train")
+    args = parser.parse_args()
+    train_model(args.model)
 
 if __name__ == "__main__":
     main()

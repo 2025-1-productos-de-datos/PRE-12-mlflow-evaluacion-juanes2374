@@ -3,17 +3,20 @@
 import os
 import subprocess
 import warnings
+import sys
 
 warnings.filterwarnings("ignore")
 
 
 def test_01():
+    # Ruta completa al ejecutable de Python dentro del entorno virtual
+    python_exec = sys.executable
 
     # Test if the homework script runs without errors
     try:
         for model in ["elasticnet", "knn"]:
             subprocess.run(
-                ["python3", "-m", "homework", "--model", model],
+                [python_exec, "-m", "homework", "--model", model],
                 check=True,
             )
     except subprocess.CalledProcessError as e:
